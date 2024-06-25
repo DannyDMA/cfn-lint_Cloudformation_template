@@ -20,22 +20,18 @@ phases:
   build:
     commands:
       - echo === "Test Template" ===
-      
+      - cfn-lint CloudFormationNn.yaml
       - echo *** "Test completed" ***
-
       - echo === "Build Template " ===
-      - cfn-lint pipeline.yaml
-      - cfn-lint app/app-stack.yaml
-      - echo "Linting completed successfully!"
+      - aws cloudformation package --template-file CloudFormationNn.yaml --s3-bucket artifact-bucketdma --output-template-file finale-artifact.yaml
+
 
   post_build:
     commands:
-      - echo "Preparing build artifacts for deploy stage..."
-      - cp -r app output/
+      - echo === Action to take when build is complete ===
+      - echo Build completed on `date`
 
 artifacts:
   files:
-    - output/**/*
+    - finale-artifact.yaml #This will create the zip (artifact) for the deploy stage
     - app/app-stack.yaml
-    - pipeline.yaml
-  discard-paths: no
