@@ -1,0 +1,36 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9 #To install Python on the EC2
+    commands:
+      - echo === "Installing cfn-lint" ===
+      - pip3 install cfn-lint #To install cfn-lint
+
+  pre_build:
+    commands:
+       - echo === "Check for Python Install" ===
+       - python3 --version
+       - echo === "Check for cfn-lint Install" ===
+       - cfn-lint --version
+       - echo === "Check for awsCli install" ===
+       - aws --version
+
+  build:
+    commands:
+      - echo === "Test Template" ===
+      - cfn-lint CloudFormationNn.yaml
+      - echo *** "Test completed" ***
+      - echo === "Build Template " ===
+      - aws cloudformation package --template-file CloudFormationNn.yaml --s3-bucket artifact-bucketdma --output-template-file finale-artifact.yaml
+
+
+  post_build:
+    commands:
+      - echo === Action to take when build is complete ===
+      - echo Build completed on `date`
+
+artifacts:
+  files:
+    - appstack.yml #This will create the zip (artifact) for the deploy stage
