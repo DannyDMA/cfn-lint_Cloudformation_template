@@ -28,6 +28,7 @@ The pipeline is divided into two stages.
 
 Pipeline Overview 
 [![Pipeline Overview](./images/pipelines.png)]
+
 ---
 
 
@@ -44,9 +45,15 @@ Build Stage Logs
 
 ---
 
-Buildspec Commands Output that shows Python installed, Python Version and Script Showing my name.
-### OUTPUTS
+CloudFormation Stack Outputs 
+[![Stack Outputs](./images/StackOutputs.png)]
 
-[![Output 1](./images/2nd.png)](images/2nd.png)
+---
 
-[![Output 2](./images/22nd.png)](images/22nd.png)
+EC2 Instance Details 
+[![InstanceDetails](./images/InstanceDetails.png)]
+
+---
+
+Web Browser Output
+[![Output ](./images/apache.png)]
