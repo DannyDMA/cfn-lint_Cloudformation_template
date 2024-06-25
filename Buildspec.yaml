@@ -1,0 +1,41 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9 #To install Python on the EC2
+    commands:
+      - echo === "Installing cfn-lint" ===
+      - pip3 install cfn-lint #To install cfn-lint
+
+  pre_build:
+    commands:
+       - echo === "Check for Python Install" ===
+       - python3 --version
+       - echo === "Check for cfn-lint Install" ===
+       - cfn-lint --version
+       - echo === "Check for awsCli install" ===
+       - aws --version
+
+  build:
+    commands:
+      - echo === "Test Template" ===
+      
+      - echo *** "Test completed" ***
+
+      - echo === "Build Template " ===
+      - cfn-lint pipeline.yaml
+      - cfn-lint app/app-stack.yaml
+      - echo "Linting completed successfully!"
+
+  post_build:
+    commands:
+      - echo "Preparing build artifacts for deploy stage..."
+      - cp -r app output/
+
+artifacts:
+  files:
+    - output/**/*
+    - app/app-stack.yaml
+    - pipeline.yaml
+  discard-paths: no
