@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "VPC with one public subnet + Apache EC2 (uses key pair: cali)"
+Description: "Custom VPC with one public subnet + EC2 (Apache) managed via SSM (no SSH)"
 
 Parameters:
   ProjectName:
@@ -8,10 +8,13 @@ Parameters:
   InstanceType:
     Type: String
     Default: t3.micro
+    AllowedValues: [t3.nano, t3.micro, t3.small, t3.medium]
+    Description: EC2 instance size
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
 Resources:
+  # --- VPC ---
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -19,15 +22,17 @@ Resources:
       EnableDnsSupport: true
       EnableDnsHostnames: true
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpc" }]
+  # --- Internet Gateway + Attach ---
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-igw" }]
-  VPCGatewayAttachment:
+  AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  # --- One Public Subnet ---
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -38,42 +43,41 @@ Resources:
         Fn::Select:
         - 0
         - Fn::GetAZs: ''
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-a" }]
+      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-subnet" }]
+  # --- Public Route Table & Route ---
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-rt" }]
-  DefaultRouteToIGW:
+  PublicRoute:
     Type: AWS::EC2::Route
-    DependsOn: VPCGatewayAttachment
+    DependsOn: AttachGateway
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-  AssocPublicSubnet:
+  RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
+  # --- Security Group (HTTP only, no SSH) ---
   WebSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP(80) and SSH(22)
+      GroupDescription: "Allow HTTP only (use SSM for access)"
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-sg" }]
+  # --- IAM for EC2 (includes SSM) ---
   InstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -85,38 +89,39 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore   # SSM access
       Path: /
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles: [!Ref InstanceRole]
       Path: /
+
+  # --- EC2 (Apache via UserData) ---
   WebServer:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref LatestAmiId
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref InstanceProfile
-      SubnetId: !Ref PublicSubnet
-      SecurityGroupIds: [!Ref WebSecurityGroup]
-      KeyName: cali
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          GroupSet: [!Ref WebSecurityGroup]
+          SubnetId: !Ref PublicSubnet
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
           set -eux
           dnf update -y
           dnf install -y httpd
-          echo "<h1>${ProjectName} — Apache on Amazon Linux 2023 (CloudFormation)</h1>" > /var/www/html/index.html
+          echo "<h1>${ProjectName} — Apache on AL2023 (SSM-enabled, no SSH)</h1>" > /var/www/html/index.html
           systemctl enable httpd
           systemctl start httpd
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-instance" }]
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-instance"
 Outputs:
-  WebURL:
-    Description: Public HTTP URL
-    Value: !Sub "http://${WebServer.PublicDnsName}"
-  PublicIP:
-    Description: Public IPv4 of the instance
-    Value: !GetAtt WebServer.PublicIp
   VpcId:
     Description: VPC ID
     Value: !Ref VPC
@@ -126,3 +131,9 @@ Outputs:
   InstanceId:
     Description: EC2 Instance ID
     Value: !Ref WebServer
+  PublicIP:
+    Description: Public IPv4 of the instance
+    Value: !GetAtt WebServer.PublicIp
+  WebURL:
+    Description: Public HTTP URL
+    Value: !Sub "http://${WebServer.PublicDnsName}"
