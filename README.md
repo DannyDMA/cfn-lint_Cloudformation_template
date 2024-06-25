@@ -1,7 +1,7 @@
 # 3 Stages Code Pipeline Application build Project
 
 MINI PROJECT
-This project demonstrates how to build and deploy a simple web application using a **three-stage CI/CD pipeline** with **AWS CloudFormation** as the deployment provider.  
+- This project demonstrates how to build and deploy a simple web application using a **three-stage CI/CD pipeline** with **AWS CloudFormation** as the deployment provider.  
 
 Project Objectives
 - Build a **3-stage CI/CD pipeline** to automate deployment of an application.
