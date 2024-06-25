@@ -1,7 +1,6 @@
-# 2 Stages Code Pipeline Application build Project
-MINI PROJECT 
-3 Stages Code Pipeline Application build Project Objectives
+# 3 Stages Code Pipeline Application build Project
 
+MINI PROJECT
 This project demonstrates how to build and deploy a simple web application using a **three-stage CI/CD pipeline** with **AWS CloudFormation** as the deployment provider.  
 
 Project Objectives
@@ -11,7 +10,7 @@ Project Objectives
 - Ensure the application runs inside a **custom VPC**.
 - Validate templates with **cfn-lint** during the build stage.
 
-The pipeline is divided into two stages.
+The pipeline is divided into three stages.
 1. Source Stage 
    Fetches the source code from GitHub.
 
